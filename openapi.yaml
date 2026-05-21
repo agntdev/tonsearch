@@ -1,0 +1,563 @@
+openapi: 3.0.3
+info:
+  title: TONSearch API
+  version: 0.1.0-draft
+  description: |
+    Draft OpenAPI 3.0 specification for TONSearch, a natural-language discovery engine
+    for TON projects, contracts, wallets, and trend analysis.
+
+    This spec is derived from the public project task board and planning documents in the
+    repository. It documents the three public APIs explicitly called out in task T08:
+
+    - Search endpoint
+    - Brief generation endpoint
+    - Risk scoring endpoint
+
+    Assumptions are intentionally conservative and marked in descriptions where the
+    implementation is not yet available.
+servers:
+  - url: https://api.tonsearch.io/v1
+    description: Production
+  - url: https://staging-api.tonsearch.io/v1
+    description: Staging
+security:
+  - bearerAuth: []
+tags:
+  - name: Search
+    description: Natural-language discovery across TON projects, wallets, contracts, and trends.
+  - name: Briefs
+    description: Structured brief generation from search and analytics results.
+  - name: Risk
+    description: Risk and opportunity scoring for TON entities.
+paths:
+  /search:
+    post:
+      tags: [Search]
+      summary: Run a natural-language search query
+      description: |
+        Accepts a natural-language query, normalizes it into structured search parameters,
+        resolves TON entities, and returns ranked results with supporting analysis signals.
+      operationId: searchEntities
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+            examples:
+              defi_projects:
+                summary: Discover high-TVL DeFi projects
+                value:
+                  query: show me DeFi projects with high TVL and strong developer activity
+                  filters:
+                    entityTypes: [project]
+                    minTvlUsd: 5000000
+                    minDeveloperActivityScore: 70
+                  limit: 10
+              suspicious_wallets:
+                summary: Investigate risky wallet activity
+                value:
+                  query: find wallets with suspicious activity tied to bridge exploits
+                  filters:
+                    entityTypes: [wallet]
+                    tags: [bridge, exploit]
+                  includeResolvedEntities: true
+                  limit: 25
+      responses:
+        '200':
+          description: Search completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+              examples:
+                success:
+                  value:
+                    requestId: req_01JTSX0YB6C8K2P7A7Z1YQ5D5P
+                    normalizedQuery:
+                      intent: discover_projects
+                      entityTypes: [project]
+                      keywords: [DeFi, TVL, developer activity]
+                    results:
+                      - entityId: prj_stonfi
+                        entityType: project
+                        name: STON.fi
+                        score: 0.93
+                        summary: Leading TON DEX with high liquidity and active releases.
+                        metrics:
+                          tvlUsd: 12400000
+                          developerActivityScore: 81
+                          riskScore: 31
+                          opportunityScore: 77
+                        references:
+                          - type: project
+                            value: https://ston.fi
+                      - entityId: prj_dedust
+                        entityType: project
+                        name: DeDust
+                        score: 0.88
+                        summary: TON liquidity hub with strong on-chain activity.
+                        metrics:
+                          tvlUsd: 9100000
+                          developerActivityScore: 74
+                          riskScore: 36
+                          opportunityScore: 72
+                        references:
+                          - type: project
+                            value: https://dedust.io
+                    pagination:
+                      nextCursor: cur_01JTSX13HKGY6Y4WSYQ0Q1VT1V
+                    meta:
+                      executionMs: 842
+                      rateLimitRemaining: 119
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /briefs:
+    post:
+      tags: [Briefs]
+      summary: Generate a structured brief
+      description: |
+        Creates a structured project or wallet brief by combining search results,
+        entity-resolution output, and risk/opportunity analytics.
+      operationId: generateBrief
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BriefRequest'
+            examples:
+              project_brief:
+                value:
+                  query: summarize the investment case for STON.fi on TON
+                  entityId: prj_stonfi
+                  outputFormat: json
+                  sections:
+                    - executive_summary
+                    - key_metrics
+                    - risk_assessment
+                    - opportunity_analysis
+                    - references
+      responses:
+        '200':
+          description: Brief generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BriefResponse'
+              examples:
+                success:
+                  value:
+                    requestId: req_01JTSX2XAE5B7NKKR9Z3R2C1Q9
+                    briefId: brief_01JTSX31N6C6F3EQS9M0M5AY3R
+                    entityId: prj_stonfi
+                    outputFormat: json
+                    generatedAt: '2026-05-22T03:58:00Z'
+                    brief:
+                      executiveSummary: STON.fi appears to be a high-liquidity TON DeFi venue with above-average ecosystem traction and moderate protocol risk.
+                      keyMetrics:
+                        tvlUsd: 12400000
+                        volume24hUsd: 1900000
+                        developerActivityScore: 81
+                      riskAssessment:
+                        overallRiskScore: 31
+                        keyRisks:
+                          - Smart-contract upgrade concentration
+                          - DEX liquidity fragmentation risk
+                      opportunityAnalysis:
+                        overallOpportunityScore: 77
+                        keyOpportunities:
+                          - Expanding TON DeFi adoption
+                          - Strong user retention among active wallets
+                      references:
+                        - type: website
+                          value: https://ston.fi
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /risk-scores:
+    post:
+      tags: [Risk]
+      summary: Score an entity for risk and opportunity
+      description: |
+        Calculates risk and opportunity signals for a TON project, wallet, or contract
+        using audit status, wallet activity, funding history, growth metrics, network
+        effects, and developer activity.
+      operationId: scoreEntityRisk
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskScoreRequest'
+            examples:
+              project_score:
+                value:
+                  entityId: prj_stonfi
+                  entityType: project
+                  includeSignals: true
+              wallet_score:
+                value:
+                  entityId: EQC123examplewallet
+                  entityType: wallet
+                  includeSignals: true
+                  context:
+                    tags: [bridge, high_velocity]
+      responses:
+        '200':
+          description: Risk score generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskScoreResponse'
+              examples:
+                success:
+                  value:
+                    requestId: req_01JTSX4H6Q90CBN1JXP89G8PG7
+                    entityId: prj_stonfi
+                    entityType: project
+                    riskScore: 31
+                    opportunityScore: 77
+                    confidence: 0.82
+                    signals:
+                      auditStatus: partial
+                      fundingHistoryScore: 62
+                      developerActivityScore: 81
+                      walletActivityRiskScore: 28
+                      networkEffectScore: 74
+                    explanations:
+                      - Active development and strong usage reduce execution risk.
+                      - Partial audit coverage and protocol upgrade concentration add operational risk.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Invalid request payload or validation failure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: invalid_request
+              message: query is required
+              details:
+                field: query
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: unauthorized
+              message: bearer token missing or invalid
+    Forbidden:
+      description: Authenticated client does not have access to this resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: forbidden
+              message: plan does not allow access to this endpoint
+    NotFound:
+      description: Requested entity or generated resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: not_found
+              message: requested entity was not found
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          description: Number of seconds until a new request may be attempted
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: rate_limited
+              message: too many requests
+              details:
+                retryAfterSeconds: 60
+    InternalServerError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: internal_error
+              message: unexpected server error
+  schemas:
+    SearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          description: Natural-language search query.
+          minLength: 3
+          example: show me TON projects with high TVL and low protocol risk
+        filters:
+          $ref: '#/components/schemas/SearchFilters'
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+        cursor:
+          type: string
+          description: Pagination cursor from a previous response.
+        includeResolvedEntities:
+          type: boolean
+          default: true
+    SearchFilters:
+      type: object
+      properties:
+        entityTypes:
+          type: array
+          items:
+            type: string
+            enum: [project, wallet, contract, trend]
+        tags:
+          type: array
+          items:
+            type: string
+        minTvlUsd:
+          type: number
+          format: float
+        minDeveloperActivityScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        maxRiskScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+    SearchResponse:
+      type: object
+      required: [requestId, results, meta]
+      properties:
+        requestId:
+          type: string
+        normalizedQuery:
+          type: object
+          properties:
+            intent:
+              type: string
+            entityTypes:
+              type: array
+              items:
+                type: string
+            keywords:
+              type: array
+              items:
+                type: string
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+        pagination:
+          type: object
+          properties:
+            nextCursor:
+              type: string
+        meta:
+          type: object
+          required: [executionMs, rateLimitRemaining]
+          properties:
+            executionMs:
+              type: integer
+            rateLimitRemaining:
+              type: integer
+    SearchResult:
+      type: object
+      required: [entityId, entityType, name, score]
+      properties:
+        entityId:
+          type: string
+        entityType:
+          type: string
+          enum: [project, wallet, contract, trend]
+        name:
+          type: string
+        score:
+          type: number
+          format: float
+        summary:
+          type: string
+        metrics:
+          type: object
+          additionalProperties: true
+        references:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reference'
+    BriefRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+        entityId:
+          type: string
+          description: Optional pre-resolved entity identifier.
+        outputFormat:
+          type: string
+          enum: [text, json, pdf]
+          default: json
+        sections:
+          type: array
+          items:
+            type: string
+            enum:
+              - executive_summary
+              - key_metrics
+              - risk_assessment
+              - opportunity_analysis
+              - references
+    BriefResponse:
+      type: object
+      required: [requestId, briefId, outputFormat, generatedAt, brief]
+      properties:
+        requestId:
+          type: string
+        briefId:
+          type: string
+        entityId:
+          type: string
+        outputFormat:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        brief:
+          type: object
+          additionalProperties: true
+    RiskScoreRequest:
+      type: object
+      required: [entityId, entityType]
+      properties:
+        entityId:
+          type: string
+        entityType:
+          type: string
+          enum: [project, wallet, contract]
+        includeSignals:
+          type: boolean
+          default: true
+        context:
+          type: object
+          additionalProperties: true
+    RiskScoreResponse:
+      type: object
+      required: [requestId, entityId, entityType, riskScore, opportunityScore, confidence]
+      properties:
+        requestId:
+          type: string
+        entityId:
+          type: string
+        entityType:
+          type: string
+        riskScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        opportunityScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        confidence:
+          type: number
+          format: float
+        signals:
+          type: object
+          additionalProperties: true
+        explanations:
+          type: array
+          items:
+            type: string
+    Reference:
+      type: object
+      properties:
+        type:
+          type: string
+        value:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+x-rate-limits:
+  defaultAuthenticated:
+    requestsPerMinute: 120
+    burst: 30
+  defaultAnonymous:
+    requestsPerMinute: 10
+    burst: 5
+x-authentication-notes:
+  - All write-style and analytics endpoints require a bearer token.
+  - Anonymous access may be disabled in production.
+  - Use least-privilege API keys for server-to-server access.
