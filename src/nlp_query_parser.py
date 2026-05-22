@@ -148,10 +148,10 @@ class QueryClassifier:
             r"(verified|audited) (project|contract)",
         ],
         QueryType.TVL_QUERY: [
-            r"tv1.*\d",
+            r"(?:tv1|tvl).*\d",
             r"tvl",
             r"(total|锁仓) value",
-            r"(锁仓|锁仓) TVL",
+            r"(锁仓|锁仓) (?:tv1|tvl)",
         ],
         QueryType.ACTIVITY_QUERY: [
             r"activity",
@@ -468,9 +468,9 @@ class FilterExtractor:
 
     # TVL patterns
     TVL_PATTERNS = [
-        r"tv1?\s*([><=]+)\s*(\d+(?:\.\d+)?[kmb]?)",
-        r"tvl\s*(greater|less)?\s*(than)?\s*(\d+(?:\.\d+)?[kmb]?)",
-        r"tv1?\s*(between)\s*(\d+(?:\.\d+)?)\s*(and|to)\s*(\d+(?:\.\d+)?)",
+        r"(?:tv1|tvl)\s*([><=]+)\s*(\d+(?:\.\d+)?[kmb]?)",
+        r"(?:tv1|tvl)\s*(greater|less)?\s*(than)?\s*(\d+(?:\.\d+)?[kmb]?)",
+        r"(?:tv1|tvl)\s*(between)\s*(\d+(?:\.\d+)?)\s*(and|to)\s*(\d+(?:\.\d+)?)",
     ]
 
     # Sort patterns
