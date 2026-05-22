@@ -12,6 +12,7 @@ from typing import Optional
 
 class EntityType(Enum):
     """Types of on-chain entities."""
+
     UNKNOWN = "unknown"
     EXTERNAL_WALLET = "external_wallet"
     CONTRACT = "contract"
@@ -24,6 +25,7 @@ class EntityType(Enum):
 @dataclass
 class ResolvedEntity:
     """A resolved on-chain entity with confidence scoring."""
+
     address: str
     normalized_address: str
     entity_type: EntityType
@@ -69,7 +71,13 @@ class ProjectMapping:
         self._address_to_project: dict[str, dict] = {}
         self._project_to_addresses: dict[str, list[str]] = {}
 
-    def register(self, address: str, project_id: str, project_name: str, metadata: Optional[dict] = None):
+    def register(
+        self,
+        address: str,
+        project_id: str,
+        project_name: str,
+        metadata: Optional[dict] = None,
+    ):
         self._address_to_project[address] = {
             "project_id": project_id,
             "project_name": project_name,
@@ -119,7 +127,9 @@ class ResolutionConfidence:
         return min(0.95, base)
 
     @classmethod
-    def from_interactions(cls, interaction_count: int, unique_counterparties: int) -> float:
+    def from_interactions(
+        cls, interaction_count: int, unique_counterparties: int
+    ) -> float:
         """
         Confidence from interaction patterns.
         More diverse interactions = higher confidence.
@@ -164,7 +174,9 @@ class EntityResolver:
             cluster = self._clusters[cluster_id]
             cluster_size = cluster.get_size()
             is_root = cluster.root_address == normalized
-            confidence = ResolutionConfidence.from_cluster_analysis(cluster_size, is_root)
+            confidence = ResolutionConfidence.from_cluster_analysis(
+                cluster_size, is_root
+            )
 
         ownership_chain = self._resolve_ownership_chain(normalized)
         if ownership_chain:
@@ -192,7 +204,9 @@ class EntityResolver:
         """Resolve multiple addresses efficiently."""
         return [self.resolve(addr) for addr in addresses]
 
-    def resolve_with_cluster(self, address: str) -> tuple[ResolvedEntity, Optional[AddressCluster]]:
+    def resolve_with_cluster(
+        self, address: str
+    ) -> tuple[ResolvedEntity, Optional[AddressCluster]]:
         """Resolve address and return its cluster if any."""
         entity = self.resolve(address)
         cluster_id = self._address_to_cluster.get(entity.normalized_address)
@@ -205,7 +219,9 @@ class EntityResolver:
         for addr in cluster.addresses:
             self._address_to_cluster[addr] = cluster.cluster_id
 
-    def build_cluster(self, addresses: list[str], root_address: Optional[str] = None) -> AddressCluster:
+    def build_cluster(
+        self, addresses: list[str], root_address: Optional[str] = None
+    ) -> AddressCluster:
         """
         Create a new cluster from a list of related addresses.
         Uses transaction graph analysis to determine root.
@@ -224,7 +240,9 @@ class EntityResolver:
         self.register_cluster(cluster)
         return cluster
 
-    def _infer_entity_type(self, address: str, project_info: Optional[dict]) -> EntityType:
+    def _infer_entity_type(
+        self, address: str, project_info: Optional[dict]
+    ) -> EntityType:
         """Infer entity type from address patterns and project info."""
         if project_info:
             return EntityType.PROJECT
@@ -241,17 +259,28 @@ class EntityResolver:
         return EntityType.UNKNOWN
 
     def _resolve_ownership_chain(self, address: str) -> list[str]:
-        """Resolve ownership chain from deployer to current contract."""
+        """
+        Resolve ownership chain from deployer to current contract.
+
+        TODO: Integrate with TON Index API to traverse deployer/owner references.
+        Currently returns [] — actual chain resolution requires on-chain data.
+        """
         return []
 
     def _find_related_contracts(self, address: str) -> list[str]:
-        """Find contracts deployed by the same owner."""
+        """
+        Find contracts deployed by the same owner or interacting with this address.
+
+        TODO: Integrate with TON Index API to query contracts by deployer address.
+        Currently returns [] — actual relationship lookup requires on-chain data.
+        """
         return []
 
 
 # -----------------------------------------------------------------------------
 # Utilities
 # -----------------------------------------------------------------------------
+
 
 def normalize_address(address: str) -> str:
     """
