@@ -50,7 +50,25 @@ class TestOpportunitySignals(unittest.TestCase):
 
 
 class TestRiskScorer(unittest.TestCase):
+    def test_medium_risk_project(self):
+        # Mixed signals -> MEDIUM risk
+        signals = RiskSignals(
+            audit_status=0.5,
+            wallet_activity_risk=0.5,
+            funding_history_score=0.5,
+            contract_age_score=0.5,
+            interaction_diversity=0.5,
+            holder_concentration=0.5,
+            smart_contract_complexity=0.5,
+        )
+        score, level, explanations = RiskScorer.score(signals)
+        self.assertGreaterEqual(score, 41)
+        self.assertLessEqual(score, 60)
+        self.assertEqual(level, RiskLevel.MEDIUM)
+
     def test_low_risk_project(self):
+        # All signals at 1.0 means fully audited, healthy activity, established
+        # -> inverted to risk 0 = VERY_LOW
         signals = RiskSignals(
             audit_status=1.0,
             wallet_activity_risk=1.0,
@@ -58,7 +76,7 @@ class TestRiskScorer(unittest.TestCase):
             contract_age_score=1.0,
             interaction_diversity=1.0,
             holder_concentration=1.0,
-            smart_contract_complexity=0.0,
+            smart_contract_complexity=1.0,
         )
         score, level, explanations = RiskScorer.score(signals)
         self.assertLessEqual(score, 20)
@@ -79,22 +97,6 @@ class TestRiskScorer(unittest.TestCase):
         score, level, explanations = RiskScorer.score(signals)
         self.assertGreaterEqual(score, 81)
         self.assertEqual(level, RiskLevel.VERY_HIGH)
-
-    def test_low_risk_project(self):
-        # All signals at 1.0 means fully audited, healthy activity, established
-        # -> inverted to risk 0 = VERY_LOW
-        signals = RiskSignals(
-            audit_status=1.0,
-            wallet_activity_risk=1.0,
-            funding_history_score=1.0,
-            contract_age_score=1.0,
-            interaction_diversity=1.0,
-            holder_concentration=1.0,
-            smart_contract_complexity=1.0,
-        )
-        score, level, explanations = RiskScorer.score(signals)
-        self.assertLessEqual(score, 20)
-        self.assertEqual(level, RiskLevel.VERY_LOW)
 
     def test_score_bounded_0_to_100(self):
         signals = RiskSignals(
